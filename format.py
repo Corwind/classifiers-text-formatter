@@ -69,13 +69,16 @@ def format_data(f_out, lines, dic):
                     if i == len(dic):
                         fout.write("\n")
                 i += 1
-            clean_dic(dic)
+            clean_dic(dic, clean_lines[j])
             i = 1
 
 
-def clean_dic(dic):
-    for key in dic.keys():
-        dic[key] = 0
+def clean_dic(dic, line):
+    for word in line.split():
+        try:
+            dic[word] = 0
+        except:
+            pass
 
 
 def write_dic(f_dict):
