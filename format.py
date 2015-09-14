@@ -114,7 +114,7 @@ def compute_idf(lines, dic):
                 i += 1
         if i == 0:
             continue
-        idf[key] = log10(float(len(line)) / float(i))
+        idf[key] = log10(float(len(lines)) / float(i))
     return idf
 
 
