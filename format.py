@@ -31,10 +31,9 @@ def build_dic(lines):
             continue
         l = l[1]
         l = clean_string(l)
-        for w in l.split():
-            if w.isalpha():
-                dic[w] = 0
-                dic.move_to_end(w)
+        for w in bigrams(l):
+            dic[w] = 0
+            dic.move_to_end(w)
     return dic
 
 
@@ -53,12 +52,14 @@ def format_data(f_out, lines, dic):
     idf = compute_idf(clean_lines, dic)
     with open(f_out, "w") as fout:
         for j in range(len(clean_lines)):
-            for word in clean_lines[j].split():
+            if (j % 100) == 0:
+                print(str(j) + "\n")
+            for word in bigrams(clean_lines[j]):
                 tf = compute_tf(word, clean_lines[j])
                 try:
                     dic[word] = tf * idf[word]
                 except:
-                    continue
+                    print("FAIL")
             fout.write(grades[j])
             i = 1
             for key, value in dic.items():
@@ -84,7 +85,8 @@ def clean_dic(dic, line):
 def write_dic(f_dict):
     with open(f_dict, "w+") as fdict:
         for key in dic.keys():
-            fdict.write(key + "\n")
+            fdict.write(key)
+            fdict.write("\n")
 
 
 def read_dic(f_dict):
@@ -100,7 +102,7 @@ def read_dic(f_dict):
 
 def compute_tf(word, line):
     i = 0
-    words = line.split()
+    words = bigrams(line)
     for w in words:
         if w == word:
             i += 1
@@ -113,13 +115,20 @@ def compute_idf(lines, dic):
     for key in dic.keys():
         i = 0
         for line in lines:
-            if key in line.split():
+            if key in bigrams(line, compute_idf):
                 i += 1
         if i == 0:
             continue
         idf[key] = log10(float(len(lines)) / float(i))
     return idf
 
+def bigrams(line, debug=None):
+    if debug:
+        print(str(debug))
+    ls = line.split()
+    z = zip(*[ls[i:] for i in [0, 1]])
+    z = [bigram[0] + " " + bigram[1] for bigram in z]
+    return z
 
 if __name__ == "__main__":
     script, f_in, f_out = sys.argv
