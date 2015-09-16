@@ -31,13 +31,14 @@ def build_dic(lines):
             continue
         l = l[1]
         l = clean_string(l)
-        for w in bigrams(l):
+        words = bigrams(l) + l.split()
+        for w in words:
             dic[w] = 0
             dic.move_to_end(w)
     return dic
 
 
-def format_data(f_out, lines, dic):
+def format_data(f_out, lines, dic, w = False):
     grades = []
     clean_lines = []
     for l in lines:
@@ -49,17 +50,32 @@ def format_data(f_out, lines, dic):
         l = l[1:][0]
         l = clean_string(l)
         clean_lines.append(l)
-    idf = compute_idf(clean_lines, dic)
+    bigrams_ = corpus_bigrams(clean_lines)
+    if w:
+        for bigram in bigrams_:
+            for b in bigram:
+                dic[b] += 1
+        for line in clean_lines:
+            for word in line.split():
+                dic[word] += 1
+        for key, value in dic.items():
+            if value < 3:
+                del dic[key]
+        write_dic("train.dict", dic)
+        dic = clean_all_dic(dic)
+    idf = compute_idf(clean_lines, dic, bigrams_)
     with open(f_out, "w") as fout:
         for j in range(len(clean_lines)):
             if (j % 100) == 0:
                 print(str(j) + "\n")
-            for word in bigrams(clean_lines[j]):
+            words = bigrams(clean_lines[j]) + clean_lines[j].split()
+            for word in words:
                 tf = compute_tf(word, clean_lines[j])
                 try:
                     dic[word] = tf * idf[word]
                 except:
-                    print("FAIL")
+                    pass
+                    #print(word)
             fout.write(grades[j])
             i = 1
             for key, value in dic.items():
@@ -70,9 +86,13 @@ def format_data(f_out, lines, dic):
                     if i == len(dic):
                         fout.write("\n")
                 i += 1
-            clean_dic(dic, clean_lines[j])
+            dic = clean_all_dic(dic)
             i = 1
 
+def clean_all_dic(dic):
+    for key in dic.keys():
+        dic[key] = 0
+    return dic
 
 def clean_dic(dic, line):
     for word in line.split():
@@ -80,9 +100,10 @@ def clean_dic(dic, line):
             dic[word] = 0
         except:
             pass
+    return dic
 
 
-def write_dic(f_dict):
+def write_dic(f_dict, dic):
     with open(f_dict, "w+") as fdict:
         for key in dic.keys():
             fdict.write(key)
@@ -94,7 +115,7 @@ def read_dic(f_dict):
     with open(f_dict, 'r') as f:
         for line in f.readlines():
             w = line.replace("\n", "")
-            if w.isalpha():
+            if map(str.isalpha, w.split()):
                 dic[w] = 0
                 dic.move_to_end(w)
     return dic
@@ -102,7 +123,7 @@ def read_dic(f_dict):
 
 def compute_tf(word, line):
     i = 0
-    words = bigrams(line)
+    words = bigrams(line) + line.split()
     for w in words:
         if w == word:
             i += 1
@@ -110,12 +131,13 @@ def compute_tf(word, line):
     return tf
 
 
-def compute_idf(lines, dic):
+def compute_idf(lines, dic, bigram_arrray):
     idf = OrderedDict()
     for key in dic.keys():
         i = 0
-        for line in lines:
-            if key in bigrams(line, compute_idf):
+        for j in range(len(lines)):
+            words = bigram_arrray[j] + lines[j].split()
+            if key in words:
                 i += 1
         if i == 0:
             continue
@@ -130,11 +152,16 @@ def bigrams(line, debug=None):
     z = [bigram[0] + " " + bigram[1] for bigram in z]
     return z
 
+def corpus_bigrams(corpus):
+    b = []
+    for line in corpus:
+        b.append(bigrams(line, corpus_bigrams))
+    return b
+
 if __name__ == "__main__":
     script, f_in, f_out = sys.argv
     dic = OrderedDict()
     lines = read_file(f_in)
     dic = build_dic(lines)
-    write_dic("train.dict")
     print("Building vectors")
-    format_data(f_out, lines, dic)
+    format_data(f_out, lines, dic, True)
