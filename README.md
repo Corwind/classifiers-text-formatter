@@ -8,3 +8,4 @@
 * Least used words eviction
 * Bigrams computing : Accuracy : 86%
 * Bigrams and unigrams computing : 91.80%
+* Improved learning : 98.80%
