@@ -27,7 +27,8 @@ def clean_occurences(lines):
     return lines
 
 if __name__ == "__main__":
-    not_stopw = ["no", "not", "against", "over", "under", "again", "further"]
+    not_stopw = ["no", "nor", "not", "over", "under", "again", "further",
+            "but", "against", "too", "very"]
     stopw = stopwords.words('english')
     for x in not_stopw:
         stopw.remove(x)
@@ -46,7 +47,7 @@ if __name__ == "__main__":
             lines[i] = lines[i].lower()
             lines[i] = pattern.sub('', lines[i])
             lines[i] = " ".join([stemmer.stem(w) for w in lines[i].split()])
-        #lines = clean_occurences(lines)
+        lines = clean_occurences(lines)
         with open(fout, 'w') as f_out:
             for i in range(len(lines)):
                 f_out.write(grades[i] + "\t" + lines[i] + "\n")
