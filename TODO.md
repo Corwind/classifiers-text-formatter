@@ -6,4 +6,4 @@
 * Compute TF-IDF : DONE
 * Use Bigrams : DONE
 * Optimise Bigrams : DONE
-* Experiment using bigrams and unigrams : TODO
+* Experiment using bigrams and unigrams : DONE
