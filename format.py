@@ -1,6 +1,22 @@
 #!/usr/bin/python3
 
-import sys
+"""
+format.py
+
+Usage:
+    format.py -d <dic> -i <input> -o <output> (-f|--fun) <fun>
+
+Options:
+    -h --help       Print this message
+    -v --version    Print the version
+    -d              The file to print the dictionary
+    -i              The input file
+    -o              The output file
+    -f --fun        Specify the formatting function to use
+
+"""
+
+from docopt import docopt
 from math import log10
 from collections import OrderedDict
 from string import punctuation
@@ -23,6 +39,7 @@ def read_file(f_in):
 
 
 def build_dic(lines):
+    dic = OrderedDict()
     print("Building dictionnary")
     for line in lines:
         l = line.split("\t")
@@ -37,8 +54,7 @@ def build_dic(lines):
             dic.move_to_end(w)
     return dic
 
-
-def format_data(f_out, lines, dic, w = False):
+def clean_and_grades(lines):
     grades = []
     clean_lines = []
     for l in lines:
@@ -50,6 +66,12 @@ def format_data(f_out, lines, dic, w = False):
         l = l[1:][0]
         l = clean_string(l)
         clean_lines.append(l)
+    return (grades, clean_lines)
+
+def format_data(f_out, f_dic = None, w = False):
+    lines = read_file(f_in)
+    dic = build_dic(lines)
+    grades, clean_lines = clean_and_grades(lines)
     bigrams_ = corpus_bigrams(clean_lines)
     if w:
         for bigram in bigrams_:
@@ -61,21 +83,23 @@ def format_data(f_out, lines, dic, w = False):
         for key, value in dic.items():
             if value < 3:
                 del dic[key]
-        write_dic("train.dict", dic)
+        write_dic(f_dic, dic)
         dic = clean_all_dic(dic)
     idf = compute_idf(clean_lines, dic, bigrams_)
-    with open(f_out, "w") as fout:
-        for j in range(len(clean_lines)):
+    write_file(f_out, clean_lines, dic, idf, grades)
+
+def write_file(f, lines, dic, idf, grades):
+    with open(f, "w") as fout:
+        for j in range(len(lines)):
             if (j % 100) == 0:
                 print(str(j) + "\n")
-            words = bigrams(clean_lines[j]) + clean_lines[j].split()
+            words = bigrams(lines[j]) + lines[j].split()
             for word in words:
-                tf = compute_tf(word, clean_lines[j])
+                tf = compute_tf(word, lines[j], bigrams)
                 try:
                     dic[word] = tf * idf[word]
                 except:
                     pass
-                    #print(word)
             fout.write(grades[j])
             i = 1
             for key, value in dic.items():
@@ -88,6 +112,7 @@ def format_data(f_out, lines, dic, w = False):
                 i += 1
             dic = clean_all_dic(dic)
             i = 1
+
 
 def clean_all_dic(dic):
     for key in dic.keys():
@@ -121,9 +146,9 @@ def read_dic(f_dict):
     return dic
 
 
-def compute_tf(word, line):
+def compute_tf(word, line, ngrams=None):
     i = 0
-    words = bigrams(line) + line.split()
+    words = (ngrams(line) if ngrams else []) + line.split()
     for w in words:
         if w == word:
             i += 1
@@ -131,12 +156,12 @@ def compute_tf(word, line):
     return tf
 
 
-def compute_idf(lines, dic, bigram_arrray):
+def compute_idf(lines, dic, ngram_arrray = None):
     idf = OrderedDict()
     for key in dic.keys():
         i = 0
         for j in range(len(lines)):
-            words = bigram_arrray[j] + lines[j].split()
+            words = (ngram_arrray[j] if ngram_arrray else []) + lines[j].split()
             if key in words:
                 i += 1
         if i == 0:
@@ -158,10 +183,16 @@ def corpus_bigrams(corpus):
         b.append(bigrams(line, corpus_bigrams))
     return b
 
+def check_func(fun):
+    return fun in globals().keys()
+
 if __name__ == "__main__":
-    script, f_in, f_out = sys.argv
-    dic = OrderedDict()
-    lines = read_file(f_in)
-    dic = build_dic(lines)
+    arguments = docopt(__doc__, version='1.0')
+    f_dic = arguments["<dic>"]
+    f_in = arguments["<input>"]
+    f_out = arguments["<output>"]
+    func = arguments["<fun>"]
+    if (not check_func(func)):
+        exit("{} does not exist.".format(func))
     print("Building vectors")
-    format_data(f_out, lines, dic, True)
+    globals()[func](f_out, f_dic, True)

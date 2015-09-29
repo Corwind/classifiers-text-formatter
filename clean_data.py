@@ -44,6 +44,8 @@ if __name__ == "__main__":
             lines[i] = line[1].replace("\n", "")
             lines[i] = cls(lines[i])
         for i in range(len(lines)):
+            lines[i] = lines[i].replace("n't", " not")
+        for i in range(len(lines)):
             lines[i] = lines[i].lower()
             lines[i] = pattern.sub('', lines[i])
             lines[i] = " ".join([stemmer.stem(w) for w in lines[i].split()])
