@@ -40,6 +40,7 @@ def read_file(f_in):
 
 def build_dic(lines):
     dic = OrderedDict()
+    final_lines = []
     print("Building dictionnary")
     for line in lines:
         l = line.split("\t")
@@ -49,14 +50,14 @@ def build_dic(lines):
         l = l[1]
         l = clean_string(l)
         words = bigrams(l) + l.split()
+        final_lines.append(words)
         for w in words:
             dic[w] = 0
             dic.move_to_end(w)
-    return dic
+    return (dic, final_lines)
 
-def clean_and_grades(lines):
+def get_grades(lines):
     grades = []
-    clean_lines = []
     for l in lines:
         l = l.split("\t")
         if len(l) == 1:
@@ -64,38 +65,64 @@ def clean_and_grades(lines):
         grade = l[0]
         grades.append("+1 " if grade[0] == "+" else "-1 ")
         l = l[1:][0]
-        l = clean_string(l)
-        clean_lines.append(l)
-    return (grades, clean_lines)
+    return grades
 
-def format_data(f_out, f_dic = None, w = False):
+def format_train(f_in, f_out, f_dic):
     lines = read_file(f_in)
-    dic = build_dic(lines)
-    grades, clean_lines = clean_and_grades(lines)
-    bigrams_ = corpus_bigrams(clean_lines)
+    dic, clean_lines = build_dic(lines)
+    grades = get_grades(lines)
+    format_data(f_out, (grades, clean_lines), f_dic, dic, True)
+
+
+def format_data(f_out, data, f_dic, dic, w = False):
+    grades, lines = data
     if w:
-        for bigram in bigrams_:
-            for b in bigram:
-                dic[b] += 1
-        for line in clean_lines:
-            for word in line.split():
+        for line in lines:
+            for word in line:
                 dic[word] += 1
         for key, value in dic.items():
             if value < 3:
                 del dic[key]
         write_dic(f_dic, dic)
         dic = clean_all_dic(dic)
-    idf = compute_idf(clean_lines, dic, bigrams_)
-    write_file(f_out, clean_lines, dic, idf, grades)
+    idf = compute_idf(lines, dic)
+    write_file(f_out, (grades, lines), dic, idf)
 
-def write_file(f, lines, dic, idf, grades):
+
+def format_analyse(f_in, f_out, f_dic):
+    dic = OrderedDict()
+    grades = []
+    lines = []
+    l = []
+    newline = True
+    with open(f_in, 'r') as fin:
+        for line in fin:
+            if line.startswith("++++++++++++++++++++++++"):
+                lines.append(l)
+                newline = True
+                continue
+            word = line.split("\t")[0]
+            if newline:
+                l = []
+                grades.append(word)
+                newline = False
+                continue
+            l.append(word)
+            dic[word] = 0
+            dic.move_to_end(word)
+    format_data(f_out, (grades, lines), f_dic, dic, True)
+
+
+
+def write_file(f, data, dic, idf):
+    grades, lines = data
     with open(f, "w") as fout:
-        for j in range(len(lines)):
+        n = len(lines)
+        for j in range(n):
             if (j % 100) == 0:
-                print(str(j) + "\n")
-            words = bigrams(lines[j]) + lines[j].split()
-            for word in words:
-                tf = compute_tf(word, lines[j], bigrams)
+                print("{0} / {1}".format(str(j), n))
+            for word in lines[j]:
+                tf = compute_tf(word, lines[j])
                 try:
                     dic[word] = tf * idf[word]
                 except:
@@ -146,23 +173,21 @@ def read_dic(f_dict):
     return dic
 
 
-def compute_tf(word, line, ngrams=None):
+def compute_tf(word, line):
     i = 0
-    words = (ngrams(line) if ngrams else []) + line.split()
-    for w in words:
+    for w in line:
         if w == word:
             i += 1
-    tf = i / len(words)
+    tf = i / len(line)
     return tf
 
 
-def compute_idf(lines, dic, ngram_arrray = None):
+def compute_idf(lines, dic):
     idf = OrderedDict()
     for key in dic.keys():
         i = 0
         for j in range(len(lines)):
-            words = (ngram_arrray[j] if ngram_arrray else []) + lines[j].split()
-            if key in words:
+            if key in lines[j]:
                 i += 1
         if i == 0:
             continue
@@ -194,5 +219,4 @@ if __name__ == "__main__":
     func = arguments["<fun>"]
     if (not check_func(func)):
         exit("{} does not exist.".format(func))
-    print("Building vectors")
-    globals()[func](f_out, f_dic, True)
+    globals()[func](f_in, f_out, f_dic)
