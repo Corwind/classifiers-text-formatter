@@ -12,7 +12,8 @@ Options:
     -d              The file to print the dictionary
     -i              The input file
     -o              The output file
-    -f --fun        Specify the formatting function to use
+    -f --fun        Specify the formatting function to use. You can use the
+                    following : format_{analyse,analyse_test,train,test}
 
 """
 
@@ -64,14 +65,21 @@ def get_grades(lines):
             continue
         grade = l[0]
         grades.append("+1 " if grade[0] == "+" else "-1 ")
-        l = l[1:][0]
     return grades
 
-def format_train(f_in, f_out, f_dic):
-    lines = read_file(f_in)
-    dic, clean_lines = build_dic(lines)
-    grades = get_grades(lines)
-    format_data(f_out, (grades, clean_lines), f_dic, dic, True)
+def get_cleanlines_grades(lines):
+    final_lines = []
+    grades = []
+    for l in lines:
+        l = l.split("\t")
+        if len(l) == 1:
+            continue
+        grade = l[0]
+        grades.append("+1 " if grade[0] == "+" else "-1 ")
+        l = l[1:][0]
+        l = clean_string(l)
+        final_lines.append(l.split())
+    return grades, final_lines
 
 
 def format_data(f_out, data, f_dic, dic, w = False):
@@ -88,6 +96,30 @@ def format_data(f_out, data, f_dic, dic, w = False):
     idf = compute_idf(lines, dic)
     write_file(f_out, (grades, lines), dic, idf)
 
+def format_analyse_test(f_in, f_out, f_dic):
+    dic = read_dic(f_dic)
+    grades = []
+    lines = []
+    l = []
+    newline = True
+    with open(f_in, 'r') as fin:
+        for line in fin:
+            if line.startswith("------------------------"):
+                continue
+            if line.startswith("++++++++++++++++++++++++"):
+                lines.append(l)
+                newline = True
+                continue
+            word = line.split("\t")[2]
+            if newline:
+                l = []
+                grades.append(word)
+                newline = False
+                continue
+            l.append(word)
+    for i in range(len(grades)):
+        grades[i] = ("+1 " if grades[i][0] == '+' else "-1 ")
+    format_data(f_out, (grades, lines), f_dic, dic)
 
 def format_analyse(f_in, f_out, f_dic):
     dic = OrderedDict()
@@ -97,11 +129,13 @@ def format_analyse(f_in, f_out, f_dic):
     newline = True
     with open(f_in, 'r') as fin:
         for line in fin:
+            if line.startswith("------------------------"):
+                continue
             if line.startswith("++++++++++++++++++++++++"):
                 lines.append(l)
                 newline = True
                 continue
-            word = line.split("\t")[0]
+            word = line.split("\t")[2]
             if newline:
                 l = []
                 grades.append(word)
@@ -110,9 +144,21 @@ def format_analyse(f_in, f_out, f_dic):
             l.append(word)
             dic[word] = 0
             dic.move_to_end(word)
+    for i in range(len(grades)):
+        grades[i] = ("+1 " if grades[i][0] == '+' else "-1 ")
     format_data(f_out, (grades, lines), f_dic, dic, True)
 
+def format_train(f_in, f_out, f_dic):
+    lines = read_file(f_in)
+    dic, clean_lines = build_dic(lines)
+    grades = get_grades(lines)
+    format_data(f_out, (grades, clean_lines), f_dic, dic, True)
 
+def format_test(f_in, f_out, f_dict):
+    dic = read_dic(f_dict)
+    lines = read_file(f_in)
+    grades, clean_lines = get_cleanlines_grades(lines)
+    format_data(f_out, (grades, clean_lines), f_dic, dic)
 
 def write_file(f, data, dic, idf):
     grades, lines = data
