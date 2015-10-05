@@ -4,7 +4,8 @@
 format.py
 
 Usage:
-    format.py -d <dic> -i <input> -o <output> (-f|--fun) <fun>
+    format.py -d <dic> -i <input> -o <output> (-f|--fun) <fun> [--use-idf]
+    [--format <format>]
 
 Options:
     -h --help       Print this message
@@ -14,6 +15,14 @@ Options:
     -o              The output file
     -f --fun        Specify the formatting function to use. You can use the
                     following : format_{analyse,analyse_test,train,test}
+    --use-idf       Whether or not to compute tf-idf
+    --format        Specify the format if needed, the grammar is the following:
+                    [target] [separator] [feature][feature_separator][value]
+                    [target] has to be a numerical value
+                    [feature] has to be a string of alpha-numerical values
+                    [value] has to be a numerical value
+                    [separator] and [feature_separator] have to be a single non
+                    alpha-numerical character.
 
 """
 
@@ -23,6 +32,10 @@ from collections import OrderedDict
 from string import punctuation
 from string import digits
 
+
+IDF = True
+SEP = " "
+FEAT_SEP = ":"
 
 def clean_string(s):
     for c in punctuation:
@@ -64,7 +77,7 @@ def get_grades(lines):
         if len(l) == 1:
             continue
         grade = l[0]
-        grades.append("+1 " if grade[0] == "+" else "-1 ")
+        grades.append("+1" if grade[0] == "+" else "-1")
     return grades
 
 def get_cleanlines_grades(lines):
@@ -75,7 +88,7 @@ def get_cleanlines_grades(lines):
         if len(l) == 1:
             continue
         grade = l[0]
-        grades.append("+1 " if grade[0] == "+" else "-1 ")
+        grades.append("+1" if grade[0] == "+" else "-1")
         l = l[1:][0]
         l = clean_string(l)
         final_lines.append(l.split())
@@ -93,7 +106,9 @@ def format_data(f_out, data, f_dic, dic, w = False):
                 del dic[key]
         write_dic(f_dic, dic)
         dic = clean_all_dic(dic)
-    idf = compute_idf(lines, dic)
+    idf = None
+    if IDF:
+        idf = compute_idf(lines, dic)
     write_file(f_out, (grades, lines), dic, idf)
 
 def format_analyse_test(f_in, f_out, f_dic):
@@ -118,7 +133,7 @@ def format_analyse_test(f_in, f_out, f_dic):
                 continue
             l.append(word)
     for i in range(len(grades)):
-        grades[i] = ("+1 " if grades[i][0] == '+' else "-1 ")
+        grades[i] = ("+1" if grades[i][0] == '+' else "-1")
     format_data(f_out, (grades, lines), f_dic, dic)
 
 def format_analyse(f_in, f_out, f_dic):
@@ -145,7 +160,7 @@ def format_analyse(f_in, f_out, f_dic):
             dic[word] = 0
             dic.move_to_end(word)
     for i in range(len(grades)):
-        grades[i] = ("+1 " if grades[i][0] == '+' else "-1 ")
+        grades[i] = ("+1" if grades[i][0] == '+' else "-1")
     format_data(f_out, (grades, lines), f_dic, dic, True)
 
 def format_train(f_in, f_out, f_dic):
@@ -160,24 +175,39 @@ def format_test(f_in, f_out, f_dict):
     grades, clean_lines = get_cleanlines_grades(lines)
     format_data(f_out, (grades, clean_lines), f_dic, dic)
 
-def write_file(f, data, dic, idf):
+def dict_idf(dic, idf, line):
+    for word in line:
+        tf = compute_tf(word, line)
+        try:
+            dic[word] = tf * idf[word]
+        except:
+            pass
+    return dic
+
+def dict_occur(dic, line):
+    for word in line:
+        try:
+            dic[word] += 1
+        except:
+            pass
+    return dic
+
+def write_file(f, data, dic, idf = None):
     grades, lines = data
     with open(f, "w") as fout:
         n = len(lines)
         for j in range(n):
             if (j % 100) == 0:
                 print("{0} / {1}".format(str(j), n))
-            for word in lines[j]:
-                tf = compute_tf(word, lines[j])
-                try:
-                    dic[word] = tf * idf[word]
-                except:
-                    pass
-            fout.write(grades[j])
+            if idf:
+                dic = dict_idf(dic, idf, lines[j])
+            else:
+                dic = dict_occur(dic, lines[j])
+            fout.write(grades[j] + SEP)
             i = 1
             for key, value in dic.items():
                 if(value != 0):
-                    fout.write(str(i) + ":" + str(value) +
+                    fout.write(str(i) + FEAT_SEP + str(value) +
                                (" " if i != len(dic) else "\n"))
                 else:
                     if i == len(dic):
@@ -257,12 +287,26 @@ def corpus_bigrams(corpus):
 def check_func(fun):
     return fun in globals().keys()
 
+def parse_format(f):
+    s_f = f.split()
+    SEP = " " + s_f[1] + " "
+    for c in s_f[2]:
+        if not(c.isalnum()):
+            FEAT_SEP = c
+    return SEP, FEAT_SEP
+
 if __name__ == "__main__":
     arguments = docopt(__doc__, version='1.0')
     f_dic = arguments["<dic>"]
     f_in = arguments["<input>"]
     f_out = arguments["<output>"]
     func = arguments["<fun>"]
+    IDF = arguments["--use-idf"]
+    print(arguments)
+    if (arguments["--format"]):
+        SEP, FEAT_SEP = parse_format(arguments["<format>"])
+    print(SEP)
+    print(FEAT_SEP)
     if (not check_func(func)):
         exit("{} does not exist.".format(func))
     globals()[func](f_in, f_out, f_dic)
