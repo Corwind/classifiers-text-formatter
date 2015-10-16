@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 
 import subprocess
+import sys
 
-OUTPUT_PREFIX = "results/output_{}"
-MODEL_PREFIX = "results/model_{}"
-TEST_PREFIX = "results/test_{}"
-TEST_SUFFIX = "_clean"
-TRAIN_PREFIX = "results/train_{}"
-STDOUT_CLASSIF_PREFIX = "results/stdout_{}"
+OUTPUT_PREFIX = "/output_{}"
+MODEL_PREFIX = "/model_{}"
+TEST_PREFIX = "/test_{}"
+TRAIN_PREFIX = "/train_{}"
+STDOUT_CLASSIF_PREFIX = "/stdout_{}"
+ERROR_FILE = open("errors", 'w')
 
 def append_learn(train_file, output_train_file, test_file, result_file):
   with open(train_file, 'r') as tf:
@@ -23,15 +24,19 @@ def append_learn(train_file, output_train_file, test_file, result_file):
             if ((test_lines[i][0] == '-' and result_lines[i][0] == '-') or
                 (test_lines[i][0] == '+' and result_lines[i][0] != '-')):
               otf.write(test_lines[i])
+            else:
+              ERROR_FILE.write(test_lines[i])
 
 if __name__ == "__main__":
-  for i in range(1, 26):
+  script, d, b, e = sys.argv
+  for i in range(int(b), int(e)+1):
     print(str(i))
-    subprocess.call(["svm_learn", TRAIN_PREFIX.format(i-1),
-      MODEL_PREFIX.format(i)])
-    stdout_ = open(STDOUT_CLASSIF_PREFIX.format(i), "w")
-    subprocess.call(["svm_classify", TEST_PREFIX.format(i) + TEST_SUFFIX,
-      MODEL_PREFIX.format(i), OUTPUT_PREFIX.format(i)],
+    subprocess.call(["vw", "--ngram", "2", "--skips", "1", d + TRAIN_PREFIX.format(i-1), "-f",
+      d + MODEL_PREFIX.format(i)])
+    stdout_ = open(d + STDOUT_CLASSIF_PREFIX.format(i), "w")
+    subprocess.call(["vw", "--ngram", "2", "--skips", "1", "-t", d + TEST_PREFIX.format(i), "-i",
+        d + MODEL_PREFIX.format(i), "-p", d + OUTPUT_PREFIX.format(i)],
       stdout=stdout_)
-    append_learn(TRAIN_PREFIX.format(i-1), TRAIN_PREFIX.format(i),
-        TEST_PREFIX.format(i) + TEST_SUFFIX, OUTPUT_PREFIX.format(i))
+    append_learn(d + TRAIN_PREFIX.format(i-1), d + TRAIN_PREFIX.format(i),
+        d + TEST_PREFIX.format(i), d + OUTPUT_PREFIX.format(i))
+  ERROR_FILE.close()

@@ -8,3 +8,5 @@ wsd*
 with*
 format_test.py
 results.*
+test
+compare.zsh

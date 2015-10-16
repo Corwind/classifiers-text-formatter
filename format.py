@@ -5,7 +5,7 @@ format.py
 
 Usage:
     format.py -d <dic> -i <input> -o <output> (-f|--fun) <fun> [--use-idf]
-    [--format <format>]
+    [--get-idf <idf-file> | --write-idf <idf-file>] [--format <format>]
 
 Options:
     -h --help       Print this message
@@ -16,6 +16,8 @@ Options:
     -f --fun        Specify the formatting function to use. You can use the
                     following : format_{analyse,analyse_test,train,test}
     --use-idf       Whether or not to compute tf-idf
+    --get-idf       Get idf values computed from learning set from a file
+    --write-idf     Write idf values computed from learning set to a file
     --format        Specify the format if needed, the grammar is the following:
                     [target] [separator] [feature][feature_separator][value]
                     [target] has to be a numerical value
@@ -23,6 +25,10 @@ Options:
                     [value] has to be a numerical value
                     [separator] and [feature_separator] have to be a single non
                     alpha-numerical character.
+                    Accepted strings are (for exemple):
+                        - "[target] | [feature]:[value]",
+                        - "1 /:\ data:42"
+
 
 """
 
@@ -34,6 +40,9 @@ from string import digits
 
 
 IDF = True
+GET_IDF = False
+WRITE_IDF = False
+IDF_FILE = None
 SEP = " "
 FEAT_SEP = ":"
 
@@ -55,7 +64,7 @@ def read_file(f_in):
 def build_dic(lines):
     dic = OrderedDict()
     final_lines = []
-    print("Building dictionnary")
+    print("Building dictionnary...")
     for line in lines:
         l = line.split("\t")
         if len(l) == 1:
@@ -68,6 +77,7 @@ def build_dic(lines):
         for w in words:
             dic[w] = 0
             dic.move_to_end(w)
+    done()
     return (dic, final_lines)
 
 def get_grades(lines):
@@ -193,6 +203,9 @@ def dict_occur(dic, line):
     return dic
 
 def write_file(f, data, dic, idf = None):
+    if WRITE_IDF:
+        write_idf(idf, IDF_FILE)
+    print("Writing formatted data to {}...".format(f))
     grades, lines = data
     with open(f, "w") as fout:
         n = len(lines)
@@ -215,6 +228,7 @@ def write_file(f, data, dic, idf = None):
                 i += 1
             dic = clean_all_dic(dic)
             i = 1
+    done()
 
 
 def clean_all_dic(dic):
@@ -232,10 +246,12 @@ def clean_dic(dic, line):
 
 
 def write_dic(f_dict, dic):
+    print("Writing dictionnary to {}...".format(f_dic))
     with open(f_dict, "w+") as fdict:
         for key in dic.keys():
             fdict.write(key)
             fdict.write("\n")
+    done()
 
 
 def read_dic(f_dict):
@@ -259,7 +275,14 @@ def compute_tf(word, line):
 
 
 def compute_idf(lines, dic):
+    print("Computing idf...")
     idf = OrderedDict()
+    if GET_IDF:
+        with open(IDF_FILE, 'r') as f:
+            for line in f.readlines():
+                l = line.split('\t')
+                idf[l[0]] = float(l[1])
+        return idf
     for key in dic.keys():
         i = 0
         for j in range(len(lines)):
@@ -268,7 +291,15 @@ def compute_idf(lines, dic):
         if i == 0:
             continue
         idf[key] = log10(float(len(lines)) / float(i))
+    done()
     return idf
+
+def write_idf(idf, f_idf):
+    print("Writing idf to {}...".format(f_idf))
+    with open(f_idf, 'w') as f:
+        for key, value in idf.items():
+            f.write(key + "\t" + str(value) + "\n")
+    done()
 
 def bigrams(line, debug=None):
     if debug:
@@ -279,21 +310,44 @@ def bigrams(line, debug=None):
     return z
 
 def corpus_bigrams(corpus):
+    print("Computing bigrams from corpus...")
     b = []
     for line in corpus:
         b.append(bigrams(line, corpus_bigrams))
+    done()
     return b
 
 def check_func(fun):
     return fun in globals().keys()
 
+def parse_grammar(g):
+    g = g.split()
+    if len(g) == 3:
+        SEP = " " + g[1] + " "
+    else:
+        SEP = " "
+    for c in g[len(g) - 1]:
+        if (not (c.isalnum() or c == '[' or c == ']')):
+            FEAT_SEP = c
+            break
+    return SEP, FEAT_SEP
+
 def parse_format(f):
+    if "[" in f:
+        return parse_grammar(f)
     s_f = f.split()
-    SEP = " " + s_f[1] + " "
-    for c in s_f[2]:
+    if (len(s_f) == 3):
+        SEP = " " + s_f[1] + " "
+    else:
+        SEP = " "
+    for c in s_f[len(s_f) - 1]:
         if not(c.isalnum()):
             FEAT_SEP = c
+            break
     return SEP, FEAT_SEP
+
+def done():
+    print("Done.")
 
 if __name__ == "__main__":
     arguments = docopt(__doc__, version='1.0')
@@ -302,6 +356,13 @@ if __name__ == "__main__":
     f_out = arguments["<output>"]
     func = arguments["<fun>"]
     IDF = arguments["--use-idf"]
+    GET_IDF = arguments["--get-idf"]
+    WRITE_IDF = arguments["--write-idf"]
+    if GET_IDF or WRITE_IDF:
+        if not IDF:
+            exit("Invalid arguments combination: --get-idf or --write-idf must\
+                 be used with --use-idf")
+        IDF_FILE = arguments["<idf-file>"]
     print(arguments)
     if (arguments["--format"]):
         SEP, FEAT_SEP = parse_format(arguments["<format>"])
