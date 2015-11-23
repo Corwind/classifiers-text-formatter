@@ -10,3 +10,5 @@ format_test.py
 results.*
 test
 compare.zsh
+twitter/*
+tweets_test
