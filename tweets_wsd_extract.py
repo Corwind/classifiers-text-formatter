@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-wsdextract.py
+twitter_wsd_extract.py
 
 Usage:
     wsdextract.py (-i|--input) <file_in> (-o|--output) <file_out>

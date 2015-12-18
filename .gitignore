@@ -13,3 +13,4 @@ compare.zsh
 twitter/*
 tweets_test
 cpp/format
+cpp/*.o

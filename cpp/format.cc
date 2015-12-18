@@ -3,6 +3,7 @@
 int usage(void);
 char *getOption(char **begin, char **end, const std::string &option);
 bool optionExist(char **begin, char **end, const std::string &option);
+doc readFile(std::string filename);
 
 
 int main(int argc, char **argv)
@@ -13,39 +14,38 @@ int main(int argc, char **argv)
   char *input = getOption(argv, argv + argc, "-i");
   char *output = getOption(argv, argv + argc, "-o");
 
-  std::ifstream ifs;
-  ifs.open(input);
 
   std::ofstream ofs;
   ofs.open(output);
 
-  doc d = std::make_shared<std::vector<s_line>>();
+  doc d = readFile(input);
 
-  std::string line;
-
-  while (std::getline(ifs, line))
-  {
-    int tab = line.find('\t', 0);
-    int grade = std::stoi(line.substr(0,tab));
-    std::cout << line << std::endl;
-    line = line.substr(tab + 1, line.size());
-    auto b = bigrams(line);
-    b->grade = grade;
-    d->push_back(b);
-    std::cout << "[ ";
-    for (auto jt = b->tokens.begin(); jt != b->tokens.end(); ++jt)
-      std::cout << *jt << ", ";
-    std::cout << " ]" << std::endl;
-  }
   auto idf_dict = idf(d);
   auto dict = std::make_shared<std::map<std::string, float>>();
   float tf_val;
   for (auto it = d->begin(); it != d->end(); ++it)
     for (auto jt = (*it)->tokens.begin(); jt != (*it)->tokens.end(); ++jt)
+      (*dict)[*jt] = 0;
+  for (auto it = d->begin(); it != d->end(); ++it)
+  {
+    for (auto jt = (*it)->tokens.begin(); jt != (*it)->tokens.end(); ++jt)
     {
       tf_val = tf(*it, *jt);
-      (*dict)[*jt] = tf_val / (*idf_dict)[*jt];
+      if ((*idf_dict)[*jt])
+        (*dict)[*jt] = tf_val / (*idf_dict)[*jt];
     }
+    ofs << (*it)->grade;
+    int i = 1;
+    for(const auto &myPair : (*dict))
+    {
+      std::cout << myPair.first << std::endl;
+      if (myPair.second)
+        ofs << " " << i << ":" << myPair.second;
+      ++i;
+    }
+    ofs << std::endl;
+  }
+
   return EXIT_SUCCESS;
 }
 
@@ -69,6 +69,29 @@ bool optionExist(char **begin, char **end, const std::string &option)
   return std::find(begin, end, option) != end;
 }
 
+doc readFile(std::string filename)
+{
+  std::ifstream ifs;
+  ifs.open(filename);
+  doc d = std::make_shared<std::vector<s_line>>();
+
+  std::string line;
+  while (std::getline(ifs, line))
+  {
+    int tab = line.find('\t', 0);
+    int grade = std::stoi(line.substr(0,tab));
+    std::cout << line << std::endl;
+    line = line.substr(tab + 1, line.size());
+    auto b = bigrams(line);
+    b->grade = grade;
+    d->push_back(b);
+    /*std::cout << "[ ";
+    for (auto jt = b->tokens.begin(); jt != b->tokens.end(); ++jt)
+      std::cout << *jt << ", ";
+    std::cout << " ]" << std::endl;*/
+  }
+  return d;
+}
 s_line bigrams(std::string l)
 {
   s_line v = std::make_shared<line>();
@@ -86,6 +109,7 @@ s_line bigrams(std::string l)
   for (auto it = v->tokens.begin(); it + 1 != end; ++it)
   {
     vs.push_back(*it + '_' + *(it + 1));
+    std::cout << "Bigram : " <<  *it << "_" << *(it + 1) << std::endl;
   }
   for (auto it = vs.begin(); it != vs.end(); ++it)
     v->tokens.push_back(*it);
