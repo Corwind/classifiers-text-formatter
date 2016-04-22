@@ -2,7 +2,6 @@
 
 import sys
 
-
 if __name__ == "__main__":
     script, f1, f2 = sys.argv
     correct = 0
@@ -17,4 +16,4 @@ if __name__ == "__main__":
         if (lines1[i][0] == lines2[i][0]) or (lines1[i][0] != '-' and
                 lines2[i][0] == '+'):
             correct += 1
-    print("{0:.2f}%".format((float(correct) / float(total)) * 100))
+    print("{:.2%}".format(float(correct) / float(total)))
